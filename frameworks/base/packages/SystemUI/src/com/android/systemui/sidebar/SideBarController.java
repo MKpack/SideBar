@@ -15,6 +15,7 @@ import android.app.ActivityManager;
 import android.util.Log;
 import com.android.systemui.statusbar.phone.panelstate.PanelExpansionStateManager;
 import com.android.systemui.statusbar.phone.panelstate.PanelExpansionListener;
+import com.android.systemui.statusbar.policy.KeyguardStateController;
 
 @SysUISingleton
 public class SideBarController implements Callbacks {
@@ -24,12 +25,13 @@ public class SideBarController implements Callbacks {
     private final SideBarComponent.Factory mSideBarComponentFactory;
     private final PanelExpansionStateManager mPanelExpansionStateManager;
     private final PanelExpansionListener mPanelExpansionListener;
+    private final KeyguardStateController mKeyguardStateController;
     private SideBar mSideBar;
     private boolean isPanelExpanded = false;
 
     @Inject
     public SideBarController(Context context, SideBarComponent.Factory sideBarComponentFactory,
-            PanelExpansionStateManager panelExpansionStateManager) {
+            PanelExpansionStateManager panelExpansionStateManager, KeyguardStateController keyguardStateController) {
         mContext = context;
         mSideBarComponentFactory = sideBarComponentFactory;
         mPanelExpansionStateManager = panelExpansionStateManager;
@@ -39,58 +41,34 @@ public class SideBarController implements Callbacks {
             isPanelExpanded = event.getFraction() > 0f;
             updateVisibility();
         };
+        mKeyguardStateController = keyguardStateController;
     }
 
     public void createSideBar() {
         SideBarComponent component = mSideBarComponentFactory.create();
         mSideBar = component.getSideBar();
         mSideBar.init();
-        TaskStackChangeListeners.getInstance()
-                .registerTaskStackListener(new TaskStackChangeListener() {
+        mKeyguardStateController.addCallback(
+                new KeyguardStateController.Callback() {
                     @Override
-                    public void onTaskStackChanged() {
-                        updateVisibility();
-                    }
-
-                    @Override
-                    public void onTaskCreated(int taskId, ComponentName componentName) {
-                        updateVisibility();
-                    }
-
-                    @Override
-                    public void onTaskMovedToFront(int taskId) {
+                    public void onKeyguardShowingChanged() {
                         updateVisibility();
                     }
                 });
         mPanelExpansionStateManager.addExpansionListener(mPanelExpansionListener);
-        // updateVisibility();
     }
 
     private void updateVisibility() {
+
+        if (mKeyguardStateController.isShowing()
+                || mKeyguardStateController.isOccluded()) {
+            mSideBar.hide();
+            return;
+        }
         if (isPanelExpanded) {
             mSideBar.hide();
             return;
         }
-        ComponentName top = getTopActivity();
-        if (isLauncher(top)) {
-            mSideBar.show();
-        } else {
-            mSideBar.hide();
-        }
-    }
-
-    private ComponentName getTopActivity() {
-        ActivityTaskManager atm = mContext.getSystemService(ActivityTaskManager.class);
-        List<ActivityManager.RunningTaskInfo> tasks = atm.getTasks(1);
-        if (tasks != null && !tasks.isEmpty()) {
-            return tasks.get(0).topActivity;
-        }
-        return null;
-    }
-
-    private boolean isLauncher(ComponentName cn) {
-        if (cn == null)
-            return false;
-        return "com.android.launcher3".equals(cn.getPackageName());
+        mSideBar.show();
     }
 }
