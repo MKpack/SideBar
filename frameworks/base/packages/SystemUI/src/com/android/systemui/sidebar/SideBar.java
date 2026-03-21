@@ -483,12 +483,12 @@ public class SideBar extends ViewController<SideBarView> {
 
     // 在初始化或者 onAttachedToWindow 时注册
     private void setupTouchableRegion() {
-        mBarLine.getViewTreeObserver().addOnComputeInternalInsetsListener(mInsetsListener);
+        mView.getViewTreeObserver().addOnComputeInternalInsetsListener(mInsetsListener);
     }
 
     // 在 onDetachedFromWindow 时移除，防止内存泄漏
     private void removeTouchableRegion() {
-        mBarLine.getViewTreeObserver().removeOnComputeInternalInsetsListener(mInsetsListener);
+        mView.getViewTreeObserver().removeOnComputeInternalInsetsListener(mInsetsListener);
     }
 
     // set expanded, if isExpanded is true, set width to the bigger one, otherwise
